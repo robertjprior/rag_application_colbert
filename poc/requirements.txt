@@ -1,0 +1,9 @@
+ragatouille
+sqlite-utils
+llm
+#transformers
+git+https://github.com/huggingface/transformers
+datasets 
+loralib 
+sentencepiece
+accelerate

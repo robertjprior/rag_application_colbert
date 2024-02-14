@@ -1,0 +1,23 @@
+version: "3.4"
+services:
+  api:
+    container_name: fastapi_server
+    build: backend/.
+    command: "uvicorn server:app --host 0.0.0.0 --port 8082"
+    ports:
+      - "8082:8082"
+    environment:
+    networks:
+      - rag
+
+  app:
+    container_name: streamlit_app
+    build: frontend/.
+    command: "streamlit run --server.port 8080 --server.enableCORS false Information.py"
+    ports:
+      - "8080:8080"
+    networks:
+      - rag
+
+networks:
+  rag:
