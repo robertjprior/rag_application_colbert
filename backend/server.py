@@ -1,6 +1,8 @@
 import base64
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from config_backend.config_backend import logger
+import logging
 
 import fastapi
 import pydantic
@@ -39,7 +41,11 @@ async def lifespan(app: fastapi.FastAPI) -> None:
         .build()
     )
     #build local llm instance
-
+    logger.info("loading local llm")
+    #try:
+    #    model = 'llm_locally_stored' #bits and bytes not compatible with CPU
+    #    pipeline = transformers.pipeline(task="text-generation", model=model)
+    #except Exception:
     model = 'ericzzz/falcon-rw-1b-instruct-openorca' #bits and bytes not compatible with CPU
     tokenizer = AutoTokenizer.from_pretrained(model)
     pipeline = transformers.pipeline(
@@ -49,11 +55,14 @@ async def lifespan(app: fastapi.FastAPI) -> None:
     torch_dtype=torch.bfloat16,
     device_map='auto',
     )
+    #    pipeline.save_pretrained("llm_locally_stored")
+
+    logger.info("finished loading local llm")
     #end local llm setup
 
     #define global context
     global global_context
-    global_context = GlobalContext(vector_db_url="backend/.ragatouille/colbert/indexes/blog/", 
+    global_context = GlobalContext(vector_db_url=".ragatouille/colbert/indexes/blog/", 
                                    hamilton_driver=dr,
                                    llm_pipeline = pipeline)
 
@@ -77,34 +86,23 @@ class SummaryResponse(pydantic.BaseModel):
     chunks: list[dict]
 
 
-# @app.post("/store_arxiv", tags=["Ingestion"])
-# async def store_arxiv(arxiv_ids: list[str] = fastapi.Form(...)) -> JSONResponse:
-#     """Retrieve PDF files of arxiv articles for arxiv_ids\n
-#     Read the PDF as text, create chunks, and embed them using OpenAI API\n
-#     Store chunks with embeddings in Weaviate.
-#     """
-#     global_context.hamilton_driver.execute(
-#         ["store_documents"],
-#         inputs=dict(
-#             arxiv_ids=arxiv_ids,
-#             embedding_model_name="text-embedding-ada-002",
-#             data_dir="./data",
-#             vector_db_url=global_context.vector_db_url,
-#         ),
-#     )
-
-#     return JSONResponse(content=dict(stored_arxiv_ids=arxiv_ids))
-
-
 @app.post("/store_docs", tags=["Ingestion"])
-async def store_docs(db_file: fastapi.UploadFile) -> JSONResponse:
-    """For each PDF file, read as text, create chunks, and embed them using OpenAI API\n
-    Store chunks with embeddings in Weaviate.
+async def store_docs(content_body_columns: list = fastapi.Form(...),
+                    id_column: str = fastapi.Form(...),
+                    metadata_columns: list= fastapi.Form(...),
+                    db_file: fastapi.UploadFile = fastapi.File(...),
+                    ) -> JSONResponse:
+    """For 
     """
+    logging.info('starting to store the document file')
+    import pandas as pd
+    db_file = pd.read_csv(db_file.file)
     global_context.hamilton_driver.execute(
         ["store_documents"],
         inputs=dict(
-
+            content_body_columns = content_body_columns,
+            id_column = id_column,
+            metadata_columns = metadata_columns,
             db_file=db_file,
             vector_db_url=global_context.vector_db_url,
         ),
@@ -114,36 +112,6 @@ async def store_docs(db_file: fastapi.UploadFile) -> JSONResponse:
     )
 
     return JSONResponse(content=dict(stored_docs=True))
-
-@app.get("/rag_qa", tags=["Retrieval"])
-async def rag_qa(
-    #request: fastapi.Request,
-    #rag_query: str, # = fastapi.Form(...),
-    #hybrid_search_alpha: float = fastapi.Form(...),
-    #retrieve_top_k: int, # = fastapi.Form(...),
-) -> SummaryResponse:
-    """Retrieve most relevant chunks stored in Weaviate using hybrid search\n
-    Generate text summaries using ChatGPT for each chunk\n
-    Concatenate all chunk summaries into a single query, and reduce into a
-    final summary
-    """
-    request = fastapi.Request()  # Get the request object
-    rag_query = "tell me about shot scraper" #request.query_params.get("rag_query")
-    retrieve_top_k = 2 #int(request.query_params.get("retrieve_top_k", 3))  # Use default if not provided
-    
-    results = global_context.hamilton_driver.execute(
-        ["rag_summary", "all_chunks"],
-        inputs=dict(
-            rag_query=rag_query,
-            # hybrid_search_alpha=hybrid_search_alpha,
-            retrieve_top_k=retrieve_top_k,
-            # embedding_model_name="text-embedding-ada-002",
-            # summarize_model_name="gpt-3.5-turbo-0613",
-            vector_db_url=global_context.vector_db_url,
-            llm_pipeline=global_context.llm_pipeline,
-        ),
-    )
-    return SummaryResponse(summary=results["rag_summary"], chunks=results["all_chunks"])
 
 @app.get("/rag_summary", tags=["Retrieval"])
 async def rag_summary(
@@ -156,6 +124,7 @@ async def rag_summary(
     Concatenate all chunk summaries into a single query, and reduce into a
     final summary
     """
+    logger.info('starting rag_summary')
     results = global_context.hamilton_driver.execute(
         ["rag_summary", "all_chunks"],
         inputs=dict(
@@ -168,7 +137,8 @@ async def rag_summary(
             llm_pipeline=global_context.llm_pipeline,
         ),
     )
-    return SummaryResponse(summary=results["rag_summary"], chunks=results["all_chunks"])
+    #return SummaryResponse(summary=results["rag_summary"], chunks=results["all_chunks"])
+    return dict(summary=results["rag_summary"], chunks=results["all_chunks"])
 
 
 # @app.get("/documents", tags=["Retrieval"])

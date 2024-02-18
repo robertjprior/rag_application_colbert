@@ -7,6 +7,7 @@ from hamilton.function_modifiers import extract_fields
 from hamilton.htypes import Collect, Parallelizable
 from ragatouille import RAGPretrainedModel
 import transformers
+from config_backend.config_backend import logger
 
 
 # def all_documents_file_name(weaviate_client: weaviate.Client) -> list[str]:
@@ -170,8 +171,10 @@ def all_chunks(
     retrieve_top_k: int,
 ) -> list[dict]:
     """Merge chunks back into a list and sort it by the original Weaviate relevance rank"""
+    logger.info("starting chunk retrieval")
     rag = RAGPretrainedModel.from_index(vector_db_url)
-    sorted_chunks : list[dict] = rag.search(rag_query, k = retrieve_top_k, force_fast=True) #NOTE: fore fast is less accurate
+    sorted_chunks : list[dict] = rag.search(rag_query, k = retrieve_top_k) #NOTE: fore fast is less accurate
+    logger.info("finished chunk retrieval")
     return sorted_chunks
 
 
@@ -187,13 +190,15 @@ def rag_summary(
     concatenated_context = " ".join(chunk['content'] for chunk in all_chunks)
     prompt = f'<SYS> {system_message} <INST> {rag_query} \n Context: {concatenated_context} END CONTEXT <RESP> '
 
+    logger.info("executing llm call")
     response : list[dict] = llm_pipeline(
     prompt, 
-    max_length=2000,
+    max_length=1000,
     #repetition_penalty=1.05,
     truncation=True,
     return_full_text = False,
     )
+    logger.info("llm call finished")
     response = str(response[0]['generated_text'])
     return response
 

@@ -1,0 +1,29 @@
+<SYS> Using the context to come, answer this question in a succint manner <INST> what is shot scraper?  
+ Context: New Context Source: 
+Running this:
+./blog-answer.sh 'What is shot-scraper?'
+Outputs this:
+
+Shot-scraper is a Python utility that wraps Playwright, providing both a command line interface and a YAML-driven configuration flow for automating the process of taking screenshots of web pages and scraping data from them using JavaScript. It can be used to take one-off screenshots or take multiple screenshots in a repeatable way by defining them in a YAML file. Additionally, it can be used to execute JavaScript on a page and return the resulting value.
+
+That's a really good description of my shot-scraper tool. I checked and none of that output is an exact match to content I had previously published on my blog.
+Q&amp;A
+My talk ended with a Q&amp;A session. Here are the summarized questions and answers.
+
+
+How does LangChain fit into this?
+
+New Context Source: 
+ I can ask questions like "what is shot-scraper?" - it's a piece of software I wrote. And the model kicks back a really good response explaining what it is.
+None of the words in that response are words that I wrote on my blog - it's actually a better description than I've come up myself.
+
+Shot-scraper is a Python utility that wraps Playwright, providing both a command line interface and a YAML-driven configuration flow for automating the process of taking screenshots of web pages, and for scraping data from them using JavaScript.
+
+This works by running a search for articles relating to that question, gluing them together and sticking the question at the end. That's it. That's the trick.
+I said it's easy: it's super easy to get an initial demo of this working. END CONTEXT 
+
+
+ANSWER: LangChain is a Python library that provides a command-line interface and a YAML-driven configuration flow for automating the process of taking screenshots of web pages and scraping data from them using JavaScript. Shot-scraper is a Python utility that wraps Playwright, providing both a command line interface and a YAML-driven configuration flow for automating the process of taking screenshots of web pages and scraping data from them using JavaScript.
+
+
+

@@ -1,20 +1,21 @@
 arxiv
-fastapi
-pandas
-pydantic
-PyPDF2
-python-multipart
+fastapi==0.109.2
+pandas==2.2.0
+pydantic==2.6.1
+PyPDF2==3.0.1
+python-multipart==0.0.9
 sf-hamilton[visualization] == 1.27.3
-tenacity
-tiktoken
-uvicorn
+tenacity==8.2.3
+tiktoken==0.6.0
+uvicorn==0.27.1
 
-ragatouille
-sqlite-utils
-llm
-#transformers
+ragatouille==0.0.7.post2
+sqlite-utils==3.36
+llm==0.13.1
+#transformers 4.38.0.dev0 (one obtained from below)
 git+https://github.com/huggingface/transformers
-datasets 
-loralib 
-sentencepiece
-accelerate
+datasets==2.17.0
+loralib==0.1.2
+sentencepiece==0.1.99
+accelerate==0.27.2
+rich==13.7.0

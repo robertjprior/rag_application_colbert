@@ -14,6 +14,7 @@ import re
 from fastapi import FastAPI, UploadFile
 import sqlite_utils
 from ragatouille import RAGPretrainedModel
+from config_backend.config_backend import logger
 
 _tags_re = re.compile(r'<[^>]+>')
 
@@ -23,28 +24,30 @@ def strip_html_tags(text: str) -> str:
 def store_documents(
     ragatouille_db_instance: RAGPretrainedModel,  # Assuming this dependency is provided
     vector_db_url: str,
-    db_file: UploadFile,
+    db_file: pd.core.frame.DataFrame,#: UploadFile,
+    content_body_columns: list[str],
+    id_column: str,
+    metadata_columns: list[str],
 ) -> None:
     """Store arxiv objects in Weaviate in batches.
     The vector and references between Document and Chunk are specified manually
     """
     try:
         
-        #db = sqlite_utils.Database(db_file)  # Use db_file.filename directly
-        # Process the db content (same logic as before)
-       # entries = list(db["blog_entry"].rows)
-        entries = pd.read_csv(db_file.file)
+        logger.info("inside store_documents")
+
+        #entries = pd.read_csv(db_file.file)
+        entries = db_file
         entry_texts = [
-            entry["title"] + '\n' + strip_html_tags(entry["body"])
+            "\n".join(strip_html_tags(entry[col]) for col in content_body_columns)
             for entry_id, entry in entries.iterrows()
         ]
-        entry_ids = [str(entry["id"]) for entry_id, entry in entries.iterrows()]
-        entry_metadatas = [
-            {"slug": entry["slug"], "created": entry["created"]} for entry_id, entry in entries.iterrows()
-        ]
+        entry_ids = entries[id_column].astype(str).tolist()
+        entry_metadatas = entries[metadata_columns].to_dict('records')
 
         pathlib_vector_db_url = pathlib.PurePath(vector_db_url)
         index_name = str(pathlib_vector_db_url.name)
+
         ragatouille_db_instance.index(
             collection=entry_texts,
             document_ids=entry_ids,
@@ -73,7 +76,7 @@ if __name__ == "__main__":
     # df = pd.DataFrame(output)
     # df.to_csv("database.csv")
     
-    _test_upload_file = Path('database.csv')
+    _test_upload_file = Path('test_backend/database.csv')
     from io import BytesIO
     bio = BytesIO()
     
@@ -84,7 +87,7 @@ if __name__ == "__main__":
         bio.seek(0)
         f = bio
         uploaded_file = UploadFile(f)# to make a mock fastapi upload file
-    
+    uploaded_file = pd.read_csv(_test_upload_file)
     import tempfile
 
     # with tempfile.NamedTemporaryFile(delete=False) as temp_file:
@@ -101,8 +104,11 @@ if __name__ == "__main__":
 
 
     inputs = dict(
-        vector_db_url="backend/.ragatouille/colbert/indexes/blog/",
+        vector_db_url=".ragatouille/colbert/indexes/blog/",
         db_file = uploaded_file,
+        content_body_columns= ['title', 'body'],
+        id_column= "id",
+        metadata_columns= ['slug', 'created'],
     )
 
     dr = (

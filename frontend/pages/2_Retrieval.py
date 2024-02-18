@@ -36,17 +36,19 @@ def retrieval_form_container() -> None:
         retrieve_top_k = st.number_input(
             "top K", value=3, help="The number of chunks to consider for response"
         )
-        hybrid_search_alpha = st.slider(
-            "alpha",
-            min_value=0.0,
-            max_value=1.0,
-            value=0.75,
-            help="0: Keyword. 1: Vector.\n[Weaviate docs](https://weaviate.io/developers/weaviate/api/graphql/search-operators#hybrid)",
-        )
+        # hybrid_search_alpha = st.slider(
+        #     "alpha",
+        #     min_value=0.0,
+        #     max_value=1.0,
+        #     value=0.75,
+        #     help="0: Keyword. 1: Vector.\n[Weaviate docs](https://weaviate.io/developers/weaviate/api/graphql/search-operators#hybrid)",
+        # )
 
     if form.form_submit_button("Search"):
         with st.status("Running"):
-            response = client.get_rag_summary(rag_query, hybrid_search_alpha, int(retrieve_top_k))
+            response = client.get_rag_summary(rag_query, int(retrieve_top_k))
+            st.info(response)
+        st.info('finished rag summary')
         st.session_state["history"].append(dict(query=rag_query, response=response.json()))
 
 
@@ -83,7 +85,6 @@ def app() -> None:
     st.title("📤 Retrieval")
 
     retrieval_form_container()
-
     if history := st.session_state.get("history"):
         history_display_container(history)
     else:

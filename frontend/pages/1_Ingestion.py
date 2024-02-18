@@ -1,6 +1,7 @@
 import arxiv
 import client
 import streamlit as st
+import pandas as pd
 
 
 def add_logo():
@@ -19,58 +20,80 @@ def add_logo():
     )
 
 
-def arxiv_search_container() -> None:
-    """Container to query Arxiv using the Python `arxiv` library"""
-    form = st.form(key="arxiv_search_form")
-    query = form.text_area(
-        "arXiv Search Query",
-        value="LLM in production",
-        help="[See docs](https://lukasschwab.me/arxiv.py/index.html#Search)",
-    )
+# def arxiv_search_container() -> None:
+#     """Container to query Arxiv using the Python `arxiv` library"""
+#     form = st.form(key="arxiv_search_form")
+#     query = form.text_area(
+#         "arXiv Search Query",
+#         value="LLM in production",
+#         help="[See docs](https://lukasschwab.me/arxiv.py/index.html#Search)",
+#     )
 
-    with st.expander("arXiv Search Parameters"):
-        max_results = st.number_input("Max results", value=5)
-        sort_by = st.selectbox(
-            "Sort by",
-            [
-                arxiv.SortCriterion.Relevance,
-                arxiv.SortCriterion.LastUpdatedDate,
-                arxiv.SortCriterion.SubmittedDate,
-            ],
-            format_func=lambda option: option.value[0].upper() + option.value[1:],
-        )
-        sort_order = st.selectbox(
-            "Sort order",
-            [arxiv.SortOrder.Ascending, arxiv.SortOrder.Descending],
-            format_func=lambda option: option.value[0].upper() + option.value[1:],
-        )
+#     with st.expander("arXiv Search Parameters"):
+#         max_results = st.number_input("Max results", value=5)
+#         sort_by = st.selectbox(
+#             "Sort by",
+#             [
+#                 arxiv.SortCriterion.Relevance,
+#                 arxiv.SortCriterion.LastUpdatedDate,
+#                 arxiv.SortCriterion.SubmittedDate,
+#             ],
+#             format_func=lambda option: option.value[0].upper() + option.value[1:],
+#         )
+#         sort_order = st.selectbox(
+#             "Sort order",
+#             [arxiv.SortOrder.Ascending, arxiv.SortOrder.Descending],
+#             format_func=lambda option: option.value[0].upper() + option.value[1:],
+#         )
 
-    if form.form_submit_button("Search"):
-        st.session_state["arxiv_search"] = dict(
-            query=query,
-            max_results=max_results,
-            sort_by=sort_by,
-            sort_order=sort_order,
-        )
-
-
-def article_selection_container(arxiv_form: dict) -> None:
-    """Container to select arxiv search results and send /store_arxiv POST request"""
-    results = list(arxiv.Search(**arxiv_form).results())
-    form = st.form(key="article_selection_form")
-    selection = form.multiselect("Select articles to store", results, format_func=lambda r: r.title)
-    if form.form_submit_button("Store"):
-        arxiv_ids = [entry.get_short_id() for entry in selection]
-        with st.status("Storing arXiv articles"):
-            client.post_store_arxiv(arxiv_ids)
+#     if form.form_submit_button("Search"):
+#         st.session_state["arxiv_search"] = dict(
+#             query=query,
+#             max_results=max_results,
+#             sort_by=sort_by,
+#             sort_order=sort_order,
+#         )
 
 
-def pdf_upload_container():
+# def article_selection_container(arxiv_form: dict) -> None:
+#     """Container to select arxiv search results and send /store_arxiv POST request"""
+#     results = list(arxiv.Search(**arxiv_form).results())
+#     form = st.form(key="article_selection_form")
+#     selection = form.multiselect("Select articles to store", results, format_func=lambda r: r.title)
+#     if form.form_submit_button("Store"):
+#         arxiv_ids = [entry.get_short_id() for entry in selection]
+#         with st.status("Storing arXiv articles"):
+#             client.post_store_arxiv(arxiv_ids)
+
+
+def data_upload_container():
     """Container to uploader arbitrary PDF files and send /store_pdfs POST request"""
-    uploaded_files = st.file_uploader("Upload PDF", type=["pdf"], accept_multiple_files=True)
-    if st.button("Upload"):
-        with st.status("Storing PDFs"):
-            client.post_store_pdfs(uploaded_files)
+    
+    uploaded_file = st.file_uploader("Upload Data File", type=["csv"], accept_multiple_files=False)
+    if uploaded_file is not None:
+        df = pd.read_csv(uploaded_file)
+        available_columns = df.columns.tolist()
+
+        st.header("Select Document Content Columns")
+        document_content_fields = st.multiselect(
+            "Select columns that contribute to the document content (e.g., title, body):",
+            options=available_columns
+        )
+
+        st.header("Select ID Field")
+        id_field = st.selectbox("Choose the column to use as the ID:", options=available_columns)
+
+        st.header("Specify Metadata Fields")
+        metadata_fields = st.multiselect("Select columns that represent metadata you want the model to consider:", options=available_columns)
+
+        if st.button("Upload & Process Inputs"):
+            with st.spinner("Storing Data File and Processing Inputs..."):
+                # Access and use the selected ID field and metadata fields as needed
+
+                client.post_store_data_files(uploaded_file, document_content_fields, id_field, metadata_fields)
+
+                st.success("Data uploaded and processed successfully!")
+
 
 
 def stored_documents_container():
@@ -95,18 +118,18 @@ def app() -> None:
 
     left, right = st.columns(2)
 
+    # with left:
+    #     st.subheader("Download from arXiv")
+    #     arxiv_search_container()
+    #     if arxiv_form := st.session_state.get("arxiv_search"):
+    #         article_selection_container(arxiv_form)
+
     with left:
-        st.subheader("Download from arXiv")
-        arxiv_search_container()
-        if arxiv_form := st.session_state.get("arxiv_search"):
-            article_selection_container(arxiv_form)
+        st.subheader("Upload data files")
+        data_upload_container()
 
-    with right:
-        st.subheader("Upload PDF files")
-        pdf_upload_container()
-
-    st.header("Documents stored in Weaviate")
-    stored_documents_container()
+    #st.header("Documents stored in Weaviate")
+    #stored_documents_container()
 
 
 if __name__ == "__main__":
